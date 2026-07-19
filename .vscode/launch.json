@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Next.js: 调试服务端",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev" // 如果你的启动命令是 pnpm dev，请相应修改
+    },
+    {
+      "name": "Next.js: 调试客户端",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000" // 确保端口与你的开发服务器一致
+    }
+  ]
+}

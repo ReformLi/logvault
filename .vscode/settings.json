@@ -1,0 +1,15 @@
+{
+  // 1. 保存时自动格式化与修复
+  "editor.formatOnSave": true, // 保存时自动格式化
+  "editor.defaultFormatter": "esbenp.prettier-vscode", // 指定 Prettier 为默认格式化工具[reference:21]
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "always", // 保存时自动修复 ESLint 问题[reference:23]
+    "source.removeUnusedImports": "always" // 保存时自动移除未使用的导入[reference:24]
+  },
+
+  // 2. TypeScript 相关
+  "typescript.tsdk": "node_modules/typescript/lib", // 强制 VS Code 使用项目本地 TypeScript 版本[reference:26]
+  "typescript.enablePromptUseWorkspaceTsdk": true, // 提示使用工作区的 TypeScript 版本
+  "typescript.preferences.includePackageJsonAutoImports": "auto", // 自动导入包[reference:28]
+  "typescript.preferences.useAliasesForBundling": true // 提升路径别名（如 @/）的识别[reference:29]
+}
