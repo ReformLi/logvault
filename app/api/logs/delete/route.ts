@@ -1,0 +1,30 @@
+import { auth } from '@/lib/auth';
+import { deleteLogRecords } from '@/lib/db';
+import { recordAudit } from '@/lib/audit';
+
+export async function DELETE(request: Request) {
+  const session = await auth();
+  if (!session?.user?.email) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { ids } = body as { ids: string[] };
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return Response.json({ error: 'ids must be a non-empty array' }, { status: 400 });
+    }
+
+    await deleteLogRecords(ids);
+
+    await recordAudit('delete', { ids }, session.user.email);
+
+    return Response.json({ message: `Deleted ${ids.length} records` });
+  } catch (error) {
+    return Response.json(
+      { error: error instanceof Error ? error.message : 'Delete failed' },
+      { status: 500 }
+    );
+  }
+}
