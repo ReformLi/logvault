@@ -8,6 +8,8 @@ export async function PUT(request: Request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || undefined;
+
   try {
     const body = await request.json();
     const { cron_enabled, fetch_interval_minutes, retention_days } = body;
@@ -18,7 +20,7 @@ export async function PUT(request: Request) {
       retention_days,
     });
 
-    await recordAudit('settings', { cron_enabled, fetch_interval_minutes, retention_days }, session.user.email);
+    await recordAudit('settings', { cron_enabled, fetch_interval_minutes, retention_days }, session.user.email, ip);
 
     return Response.json(updated);
   } catch (error) {

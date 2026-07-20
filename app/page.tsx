@@ -65,6 +65,14 @@ export default function Dashboard() {
   const [settings, setSettings] = useState({ cron_enabled: true, fetch_interval_minutes: 60, retention_days: 30 });
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
+  const [isUserAdmin, setIsUserAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/me')
+      .then(r => r.json())
+      .then(d => setIsUserAdmin(d.isAdmin))
+      .catch(() => {});
+  }, []);
 
   const loadRecords = useCallback(async () => {
     setLoading(true);
@@ -202,6 +210,11 @@ export default function Dashboard() {
           <p className="truncate text-sm text-neutral-500">{session?.user?.email}</p>
         </div>
         <div className="flex shrink-0 gap-2">
+          {isUserAdmin && (
+            <Button variant="outline" size="sm" onClick={() => router.push('/audit-logs')}>
+              Audit Logs
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
             Settings
           </Button>

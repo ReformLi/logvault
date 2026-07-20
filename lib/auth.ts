@@ -1,5 +1,6 @@
 import NextAuth from 'next-auth';
 import GitHub from 'next-auth/providers/github';
+import { recordAudit } from './audit';
 
 const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS ?? '')
   .split(',')
@@ -15,6 +16,17 @@ if (!githubId || !githubSecret) {
   );
 }
 
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '')
+  .split(',')
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+export function isAdmin(email: string | null | undefined): boolean {
+  if (!email) return false;
+  if (ADMIN_EMAILS.length === 0) return true;
+  return ADMIN_EMAILS.includes(email.toLowerCase());
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     GitHub({
@@ -23,9 +35,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user }) {
-      if (!user.email) return false;
-      return ALLOWED_EMAILS.length === 0 || ALLOWED_EMAILS.includes(user.email.toLowerCase());
+    async signIn({ user, account }) {
+      if (!user.email) {
+        recordAudit('login', { success: false, reason: 'no_email', provider: account?.provider }, 'unknown').catch(() => {});
+        return false;
+      }
+      const allowed = ALLOWED_EMAILS.length === 0 || ALLOWED_EMAILS.includes(user.email.toLowerCase());
+      if (!allowed) {
+        recordAudit('login', { success: false, reason: 'not_allowed', provider: account?.provider }, user.email).catch(() => {});
+        return false;
+      }
+      recordAudit('login', { success: true, provider: account?.provider }, user.email).catch(() => {});
+      return true;
     },
     async session({ session }) {
       return session;

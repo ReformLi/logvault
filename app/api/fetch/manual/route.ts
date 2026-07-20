@@ -7,11 +7,18 @@ import { recordAudit } from '@/lib/audit';
 import { mergeLogs, hasOverlap, normalizeLog } from '@/lib/log-utils';
 import type { AccessLogEntry } from '@/lib/types';
 
-export async function POST() {
+function getIp(request?: Request): string | undefined {
+  if (!request) return undefined;
+  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || undefined;
+}
+
+export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.email) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const ip = getIp(request);
 
   let project;
   try {
@@ -19,6 +26,8 @@ export async function POST() {
   } catch {
     return Response.json({ error: 'VERCEL_PROJECT_NAME or VERCEL_PROJECT_ID not configured' }, { status: 500 });
   }
+
+  let createdBlobUrl: string | null = null;
 
   try {
     const result = await fetchLatestLogs(project.name, project.id);
@@ -43,30 +52,36 @@ export async function POST() {
       if (hasOverlap(oldLogs, newLogs)) {
         const { merged, exceedsMax } = mergeLogs(oldLogs, newLogs);
         if (!exceedsMax) {
-          await del(existing.blob_url);
           const encrypted = encrypt(JSON.stringify(merged));
           const blob = await put(blobKey, encrypted, { access: 'public', contentType: 'application/octet-stream' });
+          createdBlobUrl = blob.url;
+          await del(existing.blob_url);
           await updateRecordBlob(existing.id, blob.url, merged.length);
-          await recordAudit('fetch', { deploymentId: result.deploymentId, logCount: merged.length }, session.user.email);
+          createdBlobUrl = null;
+          await recordAudit('fetch', { deploymentId: result.deploymentId, logCount: merged.length }, session.user.email, ip);
           return Response.json({ message: 'Logs merged into existing record', record: { ...existing, blob_url: blob.url, log_count: merged.length } });
         }
-        // exceeds max → fall through to create new record, keeping old intact
       }
     }
 
     const logJson = JSON.stringify(newLogs.slice(0, 200));
     const encrypted = encrypt(logJson);
     const blob = await put(blobKey, encrypted, { access: 'public', contentType: 'application/octet-stream' });
+    createdBlobUrl = blob.url;
     const record = await insertLogRecord({
       deployment_id: result.deploymentId,
       blob_url: blob.url,
       log_count: Math.min(newLogs.length, 200),
     });
+    createdBlobUrl = null;
 
-    await recordAudit('fetch', { deploymentId: result.deploymentId, logCount: Math.min(newLogs.length, 200) }, session.user.email);
+    await recordAudit('fetch', { deploymentId: result.deploymentId, logCount: Math.min(newLogs.length, 200) }, session.user.email, ip);
 
     return Response.json({ message: 'Logs fetched and stored successfully', record });
   } catch (error) {
+    if (createdBlobUrl) {
+      try { await del(createdBlobUrl); } catch {}
+    }
     console.error("=== /api/fetch/manual 发生错误 ===");
     console.error(error);
     return Response.json(

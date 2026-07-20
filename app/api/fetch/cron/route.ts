@@ -27,6 +27,8 @@ export async function GET(request: Request) {
     return Response.json({ error: 'VERCEL_PROJECT_NAME or VERCEL_PROJECT_ID not configured' }, { status: 500 });
   }
 
+  let createdBlobUrl: string | null = null;
+
   try {
     const result = await fetchLatestLogs(project.name, project.id);
     if (!result) {
@@ -50,10 +52,12 @@ export async function GET(request: Request) {
       if (hasOverlap(oldLogs, newLogs)) {
         const { merged, exceedsMax } = mergeLogs(oldLogs, newLogs);
         if (!exceedsMax) {
-          await del(existing.blob_url);
           const encrypted = encrypt(JSON.stringify(merged));
           const blob = await put(blobKey, encrypted, { access: 'public', contentType: 'application/octet-stream' });
+          createdBlobUrl = blob.url;
+          await del(existing.blob_url);
           await updateRecordBlob(existing.id, blob.url, merged.length);
+          createdBlobUrl = null;
           return Response.json({ message: 'Logs merged into existing record', record: { ...existing, blob_url: blob.url, log_count: merged.length } });
         }
       }
@@ -62,14 +66,19 @@ export async function GET(request: Request) {
     const logJson = JSON.stringify(newLogs.slice(0, 200));
     const encrypted = encrypt(logJson);
     const blob = await put(blobKey, encrypted, { access: 'public', contentType: 'application/octet-stream' });
+    createdBlobUrl = blob.url;
     const record = await insertLogRecord({
       deployment_id: result.deploymentId,
       blob_url: blob.url,
       log_count: Math.min(newLogs.length, 200),
     });
+    createdBlobUrl = null;
 
     return Response.json({ message: 'Logs fetched successfully', record });
   } catch (error) {
+    if (createdBlobUrl) {
+      try { await del(createdBlobUrl); } catch {}
+    }
     return Response.json(
       { error: error instanceof Error ? error.message : 'Cron fetch failed' },
       { status: 500 }

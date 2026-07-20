@@ -1,7 +1,7 @@
 import { sql as vercelSql } from '@vercel/postgres';
 import { Pool } from 'pg';
 import type { QueryResultRow, QueryResult } from '@vercel/postgres';
-import type { LogRecord, SystemSettings } from './types';
+import type { LogRecord, SystemSettings, AuditLog } from './types';
 
 type Primitive = string | number | boolean | undefined | null;
 
@@ -137,11 +137,67 @@ export async function insertAuditLog(action: string, detail: unknown, userEmail:
   `;
 }
 
+export async function getAuditLogs(
+  page: number = 1,
+  pageSize: number = 20,
+  action?: string
+): Promise<{ logs: AuditLog[]; total: number }> {
+  const offset = (page - 1) * pageSize;
+  const countIdx = 1;
+  const params: Primitive[] = [];
+
+  if (action && action !== 'all') {
+    params.push(action);
+  }
+
+  const whereClause = params.length > 0 ? ` WHERE action = $1` : '';
+  const paramLen = params.length;
+
+  const countResult = await sql.query<{ count: string }>(
+    `SELECT COUNT(*) FROM audit_logs${whereClause}`,
+    params
+  );
+  const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
+
+  const result = await sql.query<AuditLog>(
+    `SELECT * FROM audit_logs${whereClause} ORDER BY created_at DESC LIMIT $${paramLen + 1} OFFSET $${paramLen + 2}`,
+    [...params, pageSize, offset]
+  );
+
+  return { logs: result.rows, total };
+}
+
+export async function deleteAuditLogs(ids: number[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const result = await sql.query(
+    `DELETE FROM audit_logs WHERE id = ANY($1::int[])`,
+    [ids]
+  );
+  return result.rowCount ?? 0;
+}
+
+export async function deleteAuditLogsOlderThan(days: number): Promise<number> {
+  const result = await sql.query(
+    `DELETE FROM audit_logs WHERE created_at < Now() - INTERVAL '1 day' * $1`,
+    [days]
+  );
+  return result.rowCount ?? 0;
+}
+
 export async function getExpiredRecords(retentionDays: number): Promise<LogRecord[]> {
   const result = await sql<LogRecord>`
     SELECT * FROM log_records
     WHERE created_at < Now() - INTERVAL '1 day' * ${retentionDays}
     AND status = 'active'
+  `;
+  return result.rows;
+}
+
+export async function getExpiredDeletedRecords(retentionDays: number): Promise<LogRecord[]> {
+  const result = await sql<LogRecord>`
+    SELECT * FROM log_records
+    WHERE created_at < Now() - INTERVAL '1 day' * ${retentionDays}
+    AND status = 'deleted'
   `;
   return result.rows;
 }

@@ -9,6 +9,8 @@ export async function DELETE(request: Request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || undefined;
+
   try {
     const body = await request.json();
     const { ids } = body as { ids: string[] };
@@ -20,7 +22,7 @@ export async function DELETE(request: Request) {
     const blobUrls = await deleteLogRecords(ids);
     await Promise.allSettled(blobUrls.map(url => del(url)));
 
-    await recordAudit('delete', { ids }, session.user.email);
+    await recordAudit('delete', { ids }, session.user.email, ip);
 
     return Response.json({ message: `Deleted ${ids.length} records` });
   } catch (error) {
