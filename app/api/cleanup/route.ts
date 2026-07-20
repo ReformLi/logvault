@@ -1,13 +1,16 @@
 import { getSettings, getExpiredRecords, getExpiredDeletedRecords, permanentlyDeleteRecord, deleteAuditLogsOlderThan } from '@/lib/db';
 import { del } from '@/lib/blob';
+import { recordAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret) {
+    return Response.json({ error: 'CRON_SECRET not configured' }, { status: 500 });
+  }
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -35,6 +38,8 @@ export async function GET(request: Request) {
 
     // Clean old audit logs
     const auditDeleted = await deleteAuditLogsOlderThan(retentionDays);
+
+    recordAudit('cleanup', { activeDeleted, deletedCleaned, auditDeleted }, 'system').catch(() => {});
 
     return Response.json({
       message: `Cleaned up ${activeDeleted} expired records, ${deletedCleaned} soft-deleted records, ${auditDeleted} audit logs`,

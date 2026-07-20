@@ -57,7 +57,6 @@ export async function getLogRecordById(id: string): Promise<LogRecord | null> {
 }
 
 export async function getLogRecordByDeploymentId(deploymentId: string): Promise<LogRecord | null> {
-  console.log('当前 POSTGRES_URL:', process.env.POSTGRES_URL);
   const result = await sql<LogRecord>`
     SELECT * FROM log_records WHERE deployment_id = ${deploymentId}
   `;

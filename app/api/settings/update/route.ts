@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth';
+import { auth, isAdmin } from '@/lib/auth';
 import { updateSettings } from '@/lib/db';
 import { recordAudit } from '@/lib/audit';
 
@@ -6,6 +6,9 @@ export async function PUT(request: Request) {
   const session = await auth();
   if (!session?.user?.email) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (!isAdmin(session.user.email)) {
+    return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || undefined;

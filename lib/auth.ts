@@ -23,7 +23,7 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '')
 
 export function isAdmin(email: string | null | undefined): boolean {
   if (!email) return false;
-  if (ADMIN_EMAILS.length === 0) return true;
+  if (ADMIN_EMAILS.length === 0) return false;
   return ADMIN_EMAILS.includes(email.toLowerCase());
 }
 
@@ -53,7 +53,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   session: {
-    maxAge: 30 * 24 * 60 * 60,
+    maxAge: 10 * 24 * 60 * 60,
   },
   trustHost: true,
 });

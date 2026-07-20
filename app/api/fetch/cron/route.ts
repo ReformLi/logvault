@@ -2,16 +2,19 @@ import { fetchLatestLogs, getProjectConfig } from '@/lib/vercel-api';
 import { getLatestRecordByDeploymentId, insertLogRecord, updateRecordBlob, getSettings } from '@/lib/db';
 import { encrypt, decrypt } from '@/lib/encrypt';
 import { put, readBlob, del } from '@/lib/blob';
+import { recordAudit } from '@/lib/audit';
 import { mergeLogs, hasOverlap, normalizeLog } from '@/lib/log-utils';
 import type { AccessLogEntry } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret) {
+    return Response.json({ error: 'CRON_SECRET not configured' }, { status: 500 });
+  }
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -58,6 +61,7 @@ export async function GET(request: Request) {
           await del(existing.blob_url);
           await updateRecordBlob(existing.id, blob.url, merged.length);
           createdBlobUrl = null;
+          recordAudit('fetch_cron', { deploymentId: result.deploymentId, logCount: merged.length, merge: true }, 'system').catch(() => {});
           return Response.json({ message: 'Logs merged into existing record', record: { ...existing, blob_url: blob.url, log_count: merged.length } });
         }
       }
@@ -74,6 +78,7 @@ export async function GET(request: Request) {
     });
     createdBlobUrl = null;
 
+    recordAudit('fetch_cron', { deploymentId: result.deploymentId, logCount: Math.min(newLogs.length, 200), merge: false }, 'system').catch(() => {});
     return Response.json({ message: 'Logs fetched successfully', record });
   } catch (error) {
     if (createdBlobUrl) {
