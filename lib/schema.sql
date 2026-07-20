@@ -2,7 +2,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS log_records (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  deployment_id TEXT UNIQUE NOT NULL,
+  deployment_id TEXT NOT NULL,
   blob_url TEXT NOT NULL,
   log_count INTEGER DEFAULT 0,
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'deleted', 'failed')),
