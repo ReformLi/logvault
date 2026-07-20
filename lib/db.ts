@@ -109,19 +109,22 @@ export async function getSettings(): Promise<SystemSettings> {
   const result = await sql<SystemSettings>`
     SELECT * FROM settings WHERE id = 1
   `;
-  return result.rows[0] ?? { cron_enabled: true, fetch_interval_minutes: 60, retention_days: 30, updated_at: new Date().toISOString() };
+  if (!result.rows[0]) return { cron_enabled: true, fetch_interval_minutes: 60, retention_days: 30, last_cron_run: null, updated_at: new Date().toISOString() };
+  return result.rows[0];
 }
 
 export async function updateSettings(settings: {
   cron_enabled?: boolean;
   fetch_interval_minutes?: number;
   retention_days?: number;
+  last_cron_run?: string;
 }): Promise<SystemSettings> {
   const result = await sql<SystemSettings>`
     UPDATE settings SET
-      cron_enabled = COALESCE(${settings.cron_enabled}, cron_enabled),
-      fetch_interval_minutes = COALESCE(${settings.fetch_interval_minutes}, fetch_interval_minutes),
-      retention_days = COALESCE(${settings.retention_days}, retention_days),
+      cron_enabled = COALESCE(${settings.cron_enabled ?? null}, cron_enabled),
+      fetch_interval_minutes = COALESCE(${settings.fetch_interval_minutes ?? null}, fetch_interval_minutes),
+      retention_days = COALESCE(${settings.retention_days ?? null}, retention_days),
+      last_cron_run = COALESCE(${settings.last_cron_run ?? null}, last_cron_run),
       updated_at = Now()
     WHERE id = 1
     RETURNING *

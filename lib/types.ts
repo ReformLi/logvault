@@ -12,6 +12,7 @@ export interface SystemSettings {
   cron_enabled: boolean;
   fetch_interval_minutes: number;
   retention_days: number;
+  last_cron_run: string | null;
   updated_at: string;
 }
 

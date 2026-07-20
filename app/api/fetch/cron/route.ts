@@ -1,5 +1,5 @@
 import { fetchLatestLogs, getProjectConfig } from '@/lib/vercel-api';
-import { getLatestRecordByDeploymentId, insertLogRecord, updateRecordBlob, getSettings } from '@/lib/db';
+import { getLatestRecordByDeploymentId, insertLogRecord, updateRecordBlob, getSettings, updateSettings } from '@/lib/db';
 import { encrypt, decrypt } from '@/lib/encrypt';
 import { put, readBlob, del } from '@/lib/blob';
 import { recordAudit } from '@/lib/audit';
@@ -21,6 +21,13 @@ export async function GET(request: Request) {
   const settings = await getSettings();
   if (!settings.cron_enabled) {
     return Response.json({ message: 'Cron is disabled' });
+  }
+
+  const now = Date.now();
+  const lastRun = settings.last_cron_run ? new Date(settings.last_cron_run).getTime() : 0;
+  const intervalMs = settings.fetch_interval_minutes * 60 * 1000;
+  if (now - lastRun < intervalMs) {
+    return Response.json({ message: 'Skipped: interval not yet elapsed' });
   }
 
   let project;
@@ -62,6 +69,7 @@ export async function GET(request: Request) {
           await updateRecordBlob(existing.id, blob.url, merged.length);
           createdBlobUrl = null;
           recordAudit('fetch_cron', { deploymentId: result.deploymentId, logCount: merged.length, merge: true }, 'system').catch(() => {});
+          updateSettings({ last_cron_run: new Date().toISOString() }).catch(() => {});
           return Response.json({ message: 'Logs merged into existing record', record: { ...existing, blob_url: blob.url, log_count: merged.length } });
         }
       }
@@ -79,6 +87,7 @@ export async function GET(request: Request) {
     createdBlobUrl = null;
 
     recordAudit('fetch_cron', { deploymentId: result.deploymentId, logCount: Math.min(newLogs.length, 200), merge: false }, 'system').catch(() => {});
+    updateSettings({ last_cron_run: new Date().toISOString() }).catch(() => {});
     return Response.json({ message: 'Logs fetched successfully', record });
   } catch (error) {
     if (createdBlobUrl) {

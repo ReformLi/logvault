@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS settings (
   cron_enabled BOOLEAN DEFAULT TRUE,
   fetch_interval_minutes INTEGER DEFAULT 60,
   retention_days INTEGER DEFAULT 30,
+  last_cron_run TIMESTAMPTZ,
   updated_at TIMESTAMPTZ DEFAULT Now()
 );
 
