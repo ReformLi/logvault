@@ -1,5 +1,36 @@
-import { sql } from '@vercel/postgres';
+import { sql as vercelSql } from '@vercel/postgres';
+import { Pool } from 'pg';
+import type { QueryResultRow, QueryResult } from '@vercel/postgres';
 import type { LogRecord, SystemSettings } from './types';
+
+type Primitive = string | number | boolean | undefined | null;
+
+const isLocal = process.env.USE_LOCAL_DB === 'true';
+
+function createLocalSql() {
+  const pool = new Pool({ connectionString: process.env.POSTGRES_URL });
+
+  const sqlFn = <O extends QueryResultRow>(
+    strings: TemplateStringsArray,
+    ...values: Primitive[]
+  ): Promise<QueryResult<O>> => {
+    let text = '';
+    strings.forEach((str, i) => {
+      text += str;
+      if (i < values.length) {
+        text += `$${i + 1}`;
+      }
+    });
+    return pool.query<O>(text, values);
+  };
+
+  sqlFn.query = <O extends QueryResultRow>(text: string, params?: any[]) =>
+    pool.query<O>(text, params);
+
+  return sqlFn as typeof vercelSql;
+}
+
+const sql = isLocal ? createLocalSql() : vercelSql;
 
 export async function getLogRecords(
   status: string = 'active',
@@ -26,6 +57,7 @@ export async function getLogRecordById(id: string): Promise<LogRecord | null> {
 }
 
 export async function getLogRecordByDeploymentId(deploymentId: string): Promise<LogRecord | null> {
+  console.log('当前 POSTGRES_URL:', process.env.POSTGRES_URL);
   const result = await sql<LogRecord>`
     SELECT * FROM log_records WHERE deployment_id = ${deploymentId}
   `;
@@ -44,6 +76,21 @@ export async function insertLogRecord(record: {
     RETURNING *
   `;
   return result.rows[0];
+}
+
+export async function getLatestRecordByDeploymentId(deploymentId: string): Promise<LogRecord | null> {
+  const result = await sql<LogRecord>`
+    SELECT * FROM log_records WHERE deployment_id = ${deploymentId}
+    ORDER BY fetched_at DESC LIMIT 1
+  `;
+  return result.rows[0] ?? null;
+}
+
+export async function updateRecordBlob(id: string, blob_url: string, log_count: number): Promise<void> {
+  await sql`
+    UPDATE log_records SET blob_url = ${blob_url}, log_count = ${log_count}, fetched_at = Now()
+    WHERE id = ${id}
+  `;
 }
 
 export async function deleteLogRecords(ids: string[]): Promise<void> {

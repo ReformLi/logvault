@@ -52,3 +52,5 @@ Thumbs.db
 
 # JetBrains IDE（如果将来有人用 WebStorm）
 /.idea
+.vercel
+.env*

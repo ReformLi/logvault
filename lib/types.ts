@@ -23,9 +23,18 @@ export interface AuditLog {
   created_at: string;
 }
 
-export interface VercelLogEntry {
+export interface AccessLogEntry {
   id: string;
-  date: string;
-  text: string;
+  timestamp: number;
   deploymentId: string;
+  requestMethod: string;
+  requestPath: string;
+  responseStatusCode: number;
+  level: string;
+  message: string;
+  source: string;
+  domain: string;
+  environment: string;
+  cache?: string;
+  traceId?: string;
 }

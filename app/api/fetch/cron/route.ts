@@ -1,7 +1,9 @@
-import { fetchLatestLogs } from '@/lib/vercel-api';
-import { getLogRecordByDeploymentId, insertLogRecord, getSettings } from '@/lib/db';
-import { encrypt } from '@/lib/encrypt';
-import { put } from '@vercel/blob';
+import { fetchLatestLogs, getProjectConfig } from '@/lib/vercel-api';
+import { getLatestRecordByDeploymentId, insertLogRecord, updateRecordBlob, getSettings } from '@/lib/db';
+import { encrypt, decrypt } from '@/lib/encrypt';
+import { put, readBlob } from '@/lib/blob';
+import { mergeLogs, hasOverlap, normalizeLog } from '@/lib/log-utils';
+import type { AccessLogEntry } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,35 +20,51 @@ export async function GET(request: Request) {
     return Response.json({ message: 'Cron is disabled' });
   }
 
-  const projectName = process.env.VERCEL_PROJECT_NAME;
-  if (!projectName) {
-    return Response.json({ error: 'VERCEL_PROJECT_NAME not configured' }, { status: 500 });
+  let project;
+  try {
+    project = getProjectConfig();
+  } catch {
+    return Response.json({ error: 'VERCEL_PROJECT_NAME or VERCEL_PROJECT_ID not configured' }, { status: 500 });
   }
 
   try {
-    const result = await fetchLatestLogs(projectName);
+    const result = await fetchLatestLogs(project.name, project.id);
     if (!result) {
       return Response.json({ message: 'No deployment found' });
     }
 
-    const existing = await getLogRecordByDeploymentId(result.deploymentId);
+    const newLogs = result.logs;
+    const blobKey = `logs_${Date.now()}_${result.deploymentId}.enc`;
+    const existing = await getLatestRecordByDeploymentId(result.deploymentId);
+
     if (existing) {
-      return Response.json({ message: 'Skipped - duplicate deployment', deploymentId: result.deploymentId });
+      let oldLogs: AccessLogEntry[];
+      try {
+        const encrypted = await readBlob(existing.blob_url);
+        const decrypted = decrypt(encrypted);
+        oldLogs = JSON.parse(decrypted).map(normalizeLog);
+      } catch {
+        oldLogs = [];
+      }
+
+      if (hasOverlap(oldLogs, newLogs)) {
+        const { merged, exceedsMax } = mergeLogs(oldLogs, newLogs);
+        if (!exceedsMax) {
+          const encrypted = encrypt(JSON.stringify(merged));
+          const blob = await put(blobKey, encrypted, { access: 'public', contentType: 'application/octet-stream' });
+          await updateRecordBlob(existing.id, blob.url, merged.length);
+          return Response.json({ message: 'Logs merged into existing record', record: { ...existing, blob_url: blob.url, log_count: merged.length } });
+        }
+      }
     }
 
-    const logJson = JSON.stringify(result.logs);
+    const logJson = JSON.stringify(newLogs.slice(0, 200));
     const encrypted = encrypt(logJson);
-    const blobKey = `logs_${Date.now()}_${result.deploymentId}.enc`;
-
-    const blob = await put(blobKey, encrypted, {
-      access: 'public',
-      contentType: 'application/octet-stream',
-    });
-
+    const blob = await put(blobKey, encrypted, { access: 'public', contentType: 'application/octet-stream' });
     const record = await insertLogRecord({
       deployment_id: result.deploymentId,
       blob_url: blob.url,
-      log_count: result.logCount,
+      log_count: Math.min(newLogs.length, 200),
     });
 
     return Response.json({ message: 'Logs fetched successfully', record });

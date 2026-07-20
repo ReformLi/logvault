@@ -1,9 +1,11 @@
 import { auth } from '@/lib/auth';
-import { fetchLatestLogs } from '@/lib/vercel-api';
-import { getLogRecordByDeploymentId, insertLogRecord } from '@/lib/db';
-import { encrypt } from '@/lib/encrypt';
-import { put } from '@vercel/blob';
+import { fetchLatestLogs, getProjectConfig } from '@/lib/vercel-api';
+import { getLatestRecordByDeploymentId, insertLogRecord, updateRecordBlob } from '@/lib/db';
+import { encrypt, decrypt } from '@/lib/encrypt';
+import { put, readBlob } from '@/lib/blob';
 import { recordAudit } from '@/lib/audit';
+import { mergeLogs, hasOverlap, normalizeLog } from '@/lib/log-utils';
+import type { AccessLogEntry } from '@/lib/types';
 
 export async function POST() {
   const session = await auth();
@@ -11,41 +13,61 @@ export async function POST() {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const projectName = process.env.VERCEL_PROJECT_NAME;
-  if (!projectName) {
-    return Response.json({ error: 'VERCEL_PROJECT_NAME not configured' }, { status: 500 });
+  let project;
+  try {
+    project = getProjectConfig();
+  } catch {
+    return Response.json({ error: 'VERCEL_PROJECT_NAME or VERCEL_PROJECT_ID not configured' }, { status: 500 });
   }
 
   try {
-    const result = await fetchLatestLogs(projectName);
+    const result = await fetchLatestLogs(project.name, project.id);
     if (!result) {
       return Response.json({ error: 'No deployment found' }, { status: 404 });
     }
 
-    const existing = await getLogRecordByDeploymentId(result.deploymentId);
+    const newLogs = result.logs;
+    const blobKey = `logs_${Date.now()}_${result.deploymentId}.enc`;
+    const existing = await getLatestRecordByDeploymentId(result.deploymentId);
+
     if (existing) {
-      return Response.json({ message: 'Logs already exist for this deployment', record: existing });
+      let oldLogs: AccessLogEntry[];
+      try {
+        const encrypted = await readBlob(existing.blob_url);
+        const decrypted = decrypt(encrypted);
+        oldLogs = JSON.parse(decrypted).map(normalizeLog);
+      } catch {
+        oldLogs = [];
+      }
+
+      if (hasOverlap(oldLogs, newLogs)) {
+        const { merged, exceedsMax } = mergeLogs(oldLogs, newLogs);
+        if (!exceedsMax) {
+          const encrypted = encrypt(JSON.stringify(merged));
+          const blob = await put(blobKey, encrypted, { access: 'public', contentType: 'application/octet-stream' });
+          await updateRecordBlob(existing.id, blob.url, merged.length);
+          await recordAudit('fetch', { deploymentId: result.deploymentId, logCount: merged.length }, session.user.email);
+          return Response.json({ message: 'Logs merged into existing record', record: { ...existing, blob_url: blob.url, log_count: merged.length } });
+        }
+        // exceeds max → fall through to create new record, keeping old intact
+      }
     }
 
-    const logJson = JSON.stringify(result.logs);
+    const logJson = JSON.stringify(newLogs.slice(0, 200));
     const encrypted = encrypt(logJson);
-    const blobKey = `logs_${Date.now()}_${result.deploymentId}.enc`;
-
-    const blob = await put(blobKey, encrypted, {
-      access: 'public',
-      contentType: 'application/octet-stream',
-    });
-
+    const blob = await put(blobKey, encrypted, { access: 'public', contentType: 'application/octet-stream' });
     const record = await insertLogRecord({
       deployment_id: result.deploymentId,
       blob_url: blob.url,
-      log_count: result.logCount,
+      log_count: Math.min(newLogs.length, 200),
     });
 
-    await recordAudit('fetch', { deploymentId: result.deploymentId, logCount: result.logCount }, session.user.email);
+    await recordAudit('fetch', { deploymentId: result.deploymentId, logCount: Math.min(newLogs.length, 200) }, session.user.email);
 
     return Response.json({ message: 'Logs fetched and stored successfully', record });
   } catch (error) {
+    console.error("=== /api/fetch/manual 发生错误 ===");
+    console.error(error);
     return Response.json(
       { error: error instanceof Error ? error.message : 'Fetch failed' },
       { status: 500 }

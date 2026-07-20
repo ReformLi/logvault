@@ -1,5 +1,5 @@
 import { getSettings, getExpiredRecords, permanentlyDeleteRecord } from '@/lib/db';
-import { del } from '@vercel/blob';
+import { del } from '@/lib/blob';
 
 export const dynamic = 'force-dynamic';
 

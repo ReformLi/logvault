@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth';
 import { getLogRecordById } from '@/lib/db';
 import { decrypt } from '@/lib/encrypt';
+import { readBlob } from '@/lib/blob';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,8 +22,7 @@ export async function GET(
       return Response.json({ error: 'Record not found' }, { status: 404 });
     }
 
-    const blobResponse = await fetch(record.blob_url);
-    const encrypted = await blobResponse.text();
+    const encrypted = await readBlob(record.blob_url);
     const decrypted = decrypt(encrypted);
     const logs = JSON.parse(decrypted);
 
