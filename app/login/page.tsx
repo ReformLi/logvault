@@ -16,11 +16,11 @@ export default function LoginPage() {
   }, [session, router]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="text-center">
-        <h1 className="mb-2 text-3xl font-bold">LogVault</h1>
-        <p className="mb-8 text-neutral-500">Vercel Log Management System</p>
-        <Button onClick={() => signIn('github', { redirectTo: '/' })} size="lg">
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="w-full max-w-sm text-center">
+        <h1 className="mb-2 text-2xl font-bold sm:text-3xl">LogVault</h1>
+        <p className="mb-8 text-sm text-neutral-500 sm:text-base">Vercel Log Management System</p>
+        <Button className="w-full sm:w-auto" onClick={() => signIn('github', { redirectTo: '/' })} size="lg">
           Sign in with GitHub
         </Button>
       </div>

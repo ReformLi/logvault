@@ -69,25 +69,26 @@ export default function DetailPage({ params }: { params: Promise<{ id: string }>
   }
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
+    <div className="w-full px-4 py-4 sm:px-6 lg:px-8">
       <div className="mb-6 flex items-center justify-between">
-        <Button variant="outline" onClick={() => router.push('/')}>
+        <Button variant="outline" size="sm" onClick={() => router.push('/')}>
           &larr; Back
         </Button>
-        <Button onClick={handleDownload}>Download TXT</Button>
+        <Button size="sm" onClick={handleDownload}>Download TXT</Button>
       </div>
 
       {logs.length === 0 ? (
         <p className="text-neutral-500">No logs found</p>
       ) : (
-        <div className="max-h-[80vh] overflow-auto rounded-lg border border-neutral-200 dark:border-neutral-800">
-            <table className="w-full text-xs">
+        <div className="overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-800">
+          <div className="max-h-[80vh] overflow-auto">
+            <table className="w-full text-xs sm:text-sm">
               <thead className="sticky top-0 bg-neutral-100 dark:bg-neutral-800">
                 <tr className="border-b border-neutral-200 dark:border-neutral-700">
                   <th className="w-6 px-1 py-2"></th>
-                  <th className="px-3 py-2 text-left font-medium text-neutral-500">Time</th>
-                  <th className="px-3 py-2 text-left font-medium text-neutral-500">Status</th>
-                  <th className="px-3 py-2 text-left font-medium text-neutral-500">Method</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left font-medium text-neutral-500">Time</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left font-medium text-neutral-500">Status</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left font-medium text-neutral-500">Method</th>
                   <th className="px-3 py-2 text-left font-medium text-neutral-500">Path</th>
                   <th className="px-3 py-2 text-left font-medium text-neutral-500">Message</th>
                 </tr>
@@ -130,10 +131,10 @@ export default function DetailPage({ params }: { params: Promise<{ id: string }>
                           {log.requestMethod}
                         </span>
                       </td>
-                      <td className="max-w-[300px] truncate px-3 py-2 font-mono text-neutral-700 dark:text-neutral-300">
+                      <td className="max-w-[300px] overflow-x-auto whitespace-nowrap px-3 py-2 font-mono text-neutral-700 dark:text-neutral-300 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
                         {log.requestPath}
                       </td>
-                      <td className="max-w-[400px] truncate px-3 py-2 text-neutral-600">
+                      <td className="max-w-[400px] overflow-x-auto whitespace-nowrap px-3 py-2 text-neutral-600 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
                         {log.message}
                       </td>
                     </tr>
@@ -154,6 +155,7 @@ export default function DetailPage({ params }: { params: Promise<{ id: string }>
                 ))}
               </tbody>
             </table>
+          </div>
         </div>
       )}
     </div>
