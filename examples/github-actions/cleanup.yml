@@ -1,0 +1,20 @@
+# 将此文件放入私有仓库的 .github/workflows/cleanup.yml
+# 仓库 Settings → Secrets and variables → Actions 添加：
+#   API_BASE_URL : https://你的域名.com
+#   CRON_SECRET : 你的 CRON_SECRET 环境变量值
+
+name: Cleanup
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger data cleanup
+        run: |
+          curl -sS -f \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.API_BASE_URL }}/api/cleanup"
