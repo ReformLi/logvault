@@ -93,12 +93,17 @@ export async function updateRecordBlob(id: string, blob_url: string, log_count: 
   `;
 }
 
-export async function deleteLogRecords(ids: string[]): Promise<void> {
-  if (ids.length === 0) return;
+export async function deleteLogRecords(ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const records = await sql.query<{ blob_url: string }>(
+    `SELECT blob_url FROM log_records WHERE id = ANY($1::uuid[])`,
+    [ids]
+  );
   await sql.query(
     `UPDATE log_records SET status = 'deleted' WHERE id = ANY($1::uuid[])`,
     [ids]
   );
+  return records.rows.map(r => r.blob_url);
 }
 
 export async function getSettings(): Promise<SystemSettings> {

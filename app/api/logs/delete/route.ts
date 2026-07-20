@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth';
 import { deleteLogRecords } from '@/lib/db';
+import { del } from '@/lib/blob';
 import { recordAudit } from '@/lib/audit';
 
 export async function DELETE(request: Request) {
@@ -16,7 +17,8 @@ export async function DELETE(request: Request) {
       return Response.json({ error: 'ids must be a non-empty array' }, { status: 400 });
     }
 
-    await deleteLogRecords(ids);
+    const blobUrls = await deleteLogRecords(ids);
+    await Promise.allSettled(blobUrls.map(url => del(url)));
 
     await recordAudit('delete', { ids }, session.user.email);
 
