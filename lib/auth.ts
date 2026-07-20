@@ -40,7 +40,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         recordAudit('login', { success: false, reason: 'no_email', provider: account?.provider }, 'unknown').catch(() => {});
         return false;
       }
-      const allowed = ALLOWED_EMAILS.length === 0 || ALLOWED_EMAILS.includes(user.email.toLowerCase());
+      const allowed = ALLOWED_EMAILS.includes(user.email.toLowerCase());
       if (!allowed) {
         recordAudit('login', { success: false, reason: 'not_allowed', provider: account?.provider }, user.email).catch(() => {});
         return false;

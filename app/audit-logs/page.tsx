@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
@@ -151,53 +151,55 @@ export default function AuditLogsPage() {
               </TableRow>
             ) : (
               logs.map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell className="px-2">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4"
-                      checked={selectedIds.has(log.id)}
-                      onChange={() => {
-                        setSelectedIds((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(log.id)) next.delete(log.id);
-                          else next.add(log.id);
-                          return next;
-                        });
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap text-xs sm:text-sm">
-                    {new Date(log.created_at).toLocaleString()}
-                  </TableCell>
-                  <TableCell className="max-w-[140px] truncate font-mono text-xs sm:max-w-[200px]">
-                    {log.user_email}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap font-medium">
-                    <span className={actionColor(log)}>{log.action}</span>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap font-mono text-xs text-neutral-500">
-                    {log.detail?.ipAddress || '—'}
-                  </TableCell>
-                  <TableCell className="max-w-[160px] truncate font-mono text-xs text-neutral-500 sm:max-w-[300px]">
-                    <span
-                      className="cursor-pointer hover:text-neutral-700"
-                      onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
-                    >
-                      {JSON.stringify(log.detail)}
-                    </span>
-                  </TableCell>
-                </TableRow>
+                <Fragment key={log.id}>
+                  <TableRow>
+                    <TableCell className="px-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={selectedIds.has(log.id)}
+                        onChange={() => {
+                          setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(log.id)) next.delete(log.id);
+                            else next.add(log.id);
+                            return next;
+                          });
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-xs sm:text-sm">
+                      {new Date(log.created_at).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="max-w-[140px] truncate font-mono text-xs sm:max-w-[200px]">
+                      {log.user_email}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap font-medium">
+                      <span className={actionColor(log)}>{log.action}</span>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap font-mono text-xs text-neutral-500">
+                      {log.detail?.ipAddress || '—'}
+                    </TableCell>
+                    <TableCell className="max-w-[160px] truncate font-mono text-xs text-neutral-500 sm:max-w-[300px]">
+                      <span
+                        className="cursor-pointer hover:text-neutral-700"
+                        onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
+                      >
+                        {JSON.stringify(log.detail)}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                  {expandedId === log.id && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="bg-neutral-50 px-4 py-3 dark:bg-neutral-900">
+                        <pre className="max-h-60 overflow-auto whitespace-pre-wrap text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
+                          {JSON.stringify(log.detail, null, 2)}
+                        </pre>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
               ))
-            )}
-            {expandedId !== null && (
-              <TableRow>
-                <TableCell colSpan={6} className="bg-neutral-50 px-4 py-3 dark:bg-neutral-900">
-                  <pre className="max-h-60 overflow-auto whitespace-pre-wrap text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
-                    {JSON.stringify(logs.find((l) => l.id === expandedId)?.detail, null, 2)}
-                  </pre>
-                </TableCell>
-              </TableRow>
             )}
           </TableBody>
         </Table>
