@@ -53,7 +53,7 @@ export async function POST(request: Request) {
         const { merged, exceedsMax } = mergeLogs(oldLogs, newLogs);
         if (!exceedsMax) {
           const encrypted = encrypt(JSON.stringify(merged));
-          const blob = await put(blobKey, encrypted, { contentType: 'application/octet-stream' });
+          const blob = await put(blobKey, encrypted, { access: 'private', contentType: 'application/octet-stream' });
           createdBlobUrl = blob.url;
           await del(existing.blob_url);
           await updateRecordBlob(existing.id, blob.url, merged.length);
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
 
     const logJson = JSON.stringify(newLogs.slice(0, 200));
     const encrypted = encrypt(logJson);
-    const blob = await put(blobKey, encrypted, { contentType: 'application/octet-stream' });
+    const blob = await put(blobKey, encrypted, { access: 'private', contentType: 'application/octet-stream' });
     createdBlobUrl = blob.url;
     const record = await insertLogRecord({
       deployment_id: result.deploymentId,

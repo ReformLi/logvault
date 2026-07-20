@@ -29,7 +29,7 @@ async function localDel(url: string): Promise<void> {
 export async function put(
   key: string,
   body: any,
-  options?: { access?: 'public'; contentType?: string }
+  options?: { access?: 'public' | 'private'; contentType?: string }
 ): Promise<{ url: string }> {
   if (isLocal) {
     return localPut(key, body);
