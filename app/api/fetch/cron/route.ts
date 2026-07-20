@@ -1,7 +1,7 @@
 import { fetchLatestLogs, getProjectConfig } from '@/lib/vercel-api';
 import { getLatestRecordByDeploymentId, insertLogRecord, updateRecordBlob, getSettings } from '@/lib/db';
 import { encrypt, decrypt } from '@/lib/encrypt';
-import { put, readBlob } from '@/lib/blob';
+import { put, readBlob, del } from '@/lib/blob';
 import { mergeLogs, hasOverlap, normalizeLog } from '@/lib/log-utils';
 import type { AccessLogEntry } from '@/lib/types';
 
@@ -50,6 +50,7 @@ export async function GET(request: Request) {
       if (hasOverlap(oldLogs, newLogs)) {
         const { merged, exceedsMax } = mergeLogs(oldLogs, newLogs);
         if (!exceedsMax) {
+          await del(existing.blob_url);
           const encrypted = encrypt(JSON.stringify(merged));
           const blob = await put(blobKey, encrypted, { access: 'public', contentType: 'application/octet-stream' });
           await updateRecordBlob(existing.id, blob.url, merged.length);
