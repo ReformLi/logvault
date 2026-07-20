@@ -37,4 +37,5 @@ export interface AccessLogEntry {
   environment: string;
   cache?: string;
   traceId?: string;
+  functionLogs?: { level: string; message: string }[];
 }

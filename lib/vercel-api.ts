@@ -125,6 +125,7 @@ export async function fetchRequestLogs(options: {
     environment: row.environment || 'production',
     cache: row.cache,
     traceId: row.traceId,
+    functionLogs: (row.logs || []).map((l: any) => ({ level: l.level || 'info', message: l.message || '' })),
   }));
 }
 

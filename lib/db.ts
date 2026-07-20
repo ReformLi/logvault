@@ -88,7 +88,7 @@ export async function getLatestRecordByDeploymentId(deploymentId: string): Promi
 
 export async function updateRecordBlob(id: string, blob_url: string, log_count: number): Promise<void> {
   await sql`
-    UPDATE log_records SET blob_url = ${blob_url}, log_count = ${log_count}, fetched_at = Now()
+    UPDATE log_records SET blob_url = ${blob_url}, log_count = ${log_count}, status = 'active', fetched_at = Now()
     WHERE id = ${id}
   `;
 }
