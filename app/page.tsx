@@ -109,6 +109,12 @@ export default function Dashboard() {
     }
   }, [status, loadRecords]);
 
+  useEffect(() => {
+    if (!fetchError) return;
+    const timer = setTimeout(() => setFetchError(null), 5000);
+    return () => clearTimeout(timer);
+  }, [fetchError]);
+
   const handleFetch = async () => {
     setFetching(true);
     setFetchError(null);

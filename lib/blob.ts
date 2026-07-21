@@ -45,11 +45,12 @@ export async function readBlob(url: string): Promise<string> {
     const { readFile } = await import('fs/promises');
     return readFile(filePath, 'utf-8');
   }
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to read blob: ${response.status} ${response.statusText}`);
+  const { get } = await import('@vercel/blob');
+  const result = await get(url, { access: 'private' });
+  if (!result || result.statusCode !== 200 || !result.stream) {
+    throw new Error(`Failed to read blob${result ? ': status ' + result.statusCode : ''}`);
   }
-  return response.text();
+  return new Response(result.stream).text();
 }
 
 export async function del(url: string): Promise<void> {
