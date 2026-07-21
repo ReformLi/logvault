@@ -1,6 +1,6 @@
 # LogVault — Vercel 日志管理系统
 
-**LogVault** 是一个专为 Vercel 设计的私有日志管理系统。通过调用 Vercel Request Logs API，将项目部署日志加密存储至云端数据库，支持定时自动抓取、自定义域名访问，适用于 Hobby 计划用户突破日志查看限制。
+**LogVault** 是一个专为 Vercel 设计的私有日志管理系统。通过调用 Vercel Request Logs API，将项目部署日志加密存储至云端数据库，支持定时自动抓取、日志加密归档、私有化部署与自定义域名访问，帮助 Hobby 计划用户突破 Vercel 控制台日志查看限制，实现日志的长期保存与集中管理。
 
 ---
 
