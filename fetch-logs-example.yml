@@ -1,0 +1,54 @@
+name: Fetch Vercel Logs
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get latest deployment and timestamps
+        run: |
+          NOW=$(date +%s%3N)
+          YESTERDAY=$((NOW - 86400000))
+          echo "START_DATE=$YESTERDAY" >> $GITHUB_ENV
+          echo "END_DATE=$NOW" >> $GITHUB_ENV
+
+          DEPLOYMENT=$(curl -s --fail \
+            "https://api.vercel.com/v6/deployments?limit=1&state=READY&target=production&projectId=${{ secrets.VERCEL_PROJECT_ID }}" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}")
+          DEPLOYMENT_ID=$(echo "$DEPLOYMENT" | jq -r '.deployments[0].uid // empty')
+          echo "DEPLOYMENT_ID=$DEPLOYMENT_ID" >> $GITHUB_ENV
+
+      - name: Fetch request logs from Vercel API
+        if: env.DEPLOYMENT_ID != ''
+        run: |
+          HTTP_CODE=$(curl -s -o response.json -w "%{http_code}" \
+            "https://vercel.com/api/logs/request-logs?projectId=${{ secrets.VERCEL_PROJECT_ID }}&ownerId=${{ secrets.VERCEL_OWNER_ID }}&startDate=${{ env.START_DATE }}&endDate=${{ env.END_DATE }}&deploymentId=${{ env.DEPLOYMENT_ID }}&environment=production&limit=200" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}")
+          echo "HTTP status: $HTTP_CODE"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Response body:"
+            cat response.json
+            exit 1
+          fi
+          mv response.json raw-logs.json
+          echo "Rows: $(jq '.rows | length' raw-logs.json)"
+
+      - name: Store logs via app
+        if: env.DEPLOYMENT_ID != ''
+        run: |
+          HTTP_CODE=$(curl -s -o store-response.json -w "%{http_code}" \
+            -X POST "${{ secrets.APP_URL }}/api/logs/store" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -c --arg id "${{ env.DEPLOYMENT_ID }}" '{deploymentId: $id, rows: .rows}' raw-logs.json)")
+          echo "Store HTTP status: $HTTP_CODE"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Response body:"
+            cat store-response.json
+            exit 1
+          fi
+          echo "Result: $(cat store-response.json)"
