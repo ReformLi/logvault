@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Pagination } from '@/components/ui/pagination';
 import { Select } from '@/components/ui/select';
+import Toast from '@/components/ui/toast';
 
 interface AuditLog {
   id: number;
@@ -28,6 +29,7 @@ export default function AuditLogsPage() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -52,13 +54,15 @@ export default function AuditLogsPage() {
 
   const handleDelete = async () => {
     if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
     const res = await fetch('/api/audit-logs', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      body: JSON.stringify({ ids }),
     });
     if (res.ok) {
       setSelectedIds(new Set());
+      setToastMessage(`Deleted ${ids.length} audit log(s)`);
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
       if (action !== 'all') params.set('action', action);
       const r = await fetch(`/api/audit-logs?${params}`);
@@ -124,14 +128,17 @@ export default function AuditLogsPage() {
             ]}
           />
         </div>
-        {selectedIds.size > 0 && (
-          <Button variant="destructive" size="sm" onClick={handleDelete}>
-            Delete Selected ({selectedIds.size})
-          </Button>
-        )}
       </div>
 
       <Card noPadding>
+        <div className="flex items-center justify-between border-b border-neutral-200/50 px-4 py-2">
+          <span className={`text-sm text-neutral-600 ${selectedIds.size === 0 ? 'invisible' : ''}`}>
+            {selectedIds.size} selected
+          </span>
+          <Button variant="destructive" size="sm" onClick={handleDelete} className={selectedIds.size === 0 ? 'invisible' : ''}>
+            Delete Selected
+          </Button>
+        </div>
         <Table>
           <TableHeader>
             <TableRow>
@@ -223,6 +230,8 @@ export default function AuditLogsPage() {
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       </Card>
+
+      <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
     </div>
   );
 }

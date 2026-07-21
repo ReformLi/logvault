@@ -11,6 +11,7 @@ import { Pagination } from '@/components/ui/pagination';
 import { Dialog } from '@/components/ui/dialog';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import Toast from '@/components/ui/toast';
 
 interface LogRecord {
   id: string;
@@ -109,12 +110,6 @@ export default function Dashboard() {
     }
   }, [status, loadRecords]);
 
-  useEffect(() => {
-    if (!fetchError) return;
-    const timer = setTimeout(() => setFetchError(null), 5000);
-    return () => clearTimeout(timer);
-  }, [fetchError]);
-
   const handleFetch = async () => {
     setFetching(true);
     setFetchError(null);
@@ -137,14 +132,16 @@ export default function Dashboard() {
 
   const handleDelete = async () => {
     if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
     const res = await fetch('/api/logs/delete', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      body: JSON.stringify({ ids }),
     });
     if (res.ok) {
       setSelectedIds(new Set());
       await loadRecords();
+      setFetchError(`Deleted ${ids.length} record(s)`);
     }
   };
 
@@ -268,22 +265,16 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {fetchError && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
-          {fetchError}
-        </div>
-      )}
-
-      {selectedIds.size > 0 && (
-        <div className="mb-4">
-          <Button variant="destructive" size="sm" onClick={handleDelete}>
-            Delete Selected ({selectedIds.size})
-          </Button>
-        </div>
-      )}
-
       <div className="overflow-x-auto">
         <Card noPadding>
+          <div className="flex items-center justify-between border-b border-neutral-200/50 px-4 py-2">
+            <span className={`text-sm text-neutral-600 ${selectedIds.size === 0 ? 'invisible' : ''}`}>
+              {selectedIds.size} selected
+            </span>
+            <Button variant="destructive" size="sm" onClick={handleDelete} className={selectedIds.size === 0 ? 'invisible' : ''}>
+              Delete Selected
+            </Button>
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -388,7 +379,7 @@ export default function Dashboard() {
         ) : (
           <div className="overflow-auto" style={{ resize: 'horizontal', minWidth: 300 }}>
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-neutral-100 dark:bg-neutral-800">
+              <thead className="sticky top-0 bg-neutral-50 dark:bg-neutral-900/50">
                 <tr className="border-b border-neutral-200 dark:border-neutral-700">
                   <th className="w-6 px-2 py-1.5"></th>
                   <th className="whitespace-nowrap px-2 py-1.5 text-left font-medium text-neutral-500">Time</th>
@@ -516,6 +507,8 @@ export default function Dashboard() {
           </div>
         </div>
       </Dialog>
+
+      <Toast message={fetchError} onClose={() => setFetchError(null)} />
     </div>
   );
 }

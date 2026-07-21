@@ -13,7 +13,7 @@ Table.displayName = 'Table';
 
 export const TableHeader = forwardRef<HTMLTableSectionElement, HTMLAttributes<HTMLTableSectionElement>>(
   ({ className = '', children, ...props }, ref) => (
-    <thead ref={ref} className={`border-b border-neutral-200 dark:border-neutral-800 ${className}`} {...props}>
+    <thead ref={ref} className={`border-b border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900/50 ${className}`} {...props}>
       {children}
     </thead>
   )

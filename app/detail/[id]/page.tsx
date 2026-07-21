@@ -91,7 +91,7 @@ export default function DetailPage({ params }: { params: Promise<{ id: string }>
         <div className="overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-800">
           <div className="max-h-[80vh] overflow-auto">
             <table className="w-full text-xs sm:text-sm">
-              <thead className="sticky top-0 bg-neutral-100 dark:bg-neutral-800">
+              <thead className="sticky top-0 bg-neutral-50 dark:bg-neutral-900/50">
                 <tr className="border-b border-neutral-200 dark:border-neutral-700">
                   <th className="w-6 px-1 py-2"></th>
                   <th className="whitespace-nowrap px-3 py-2 text-left font-medium text-neutral-500">Time</th>
