@@ -30,6 +30,7 @@ export async function POST(request: Request) {
 
     const newLogs = parseRequestLogRows(rows);
     if (newLogs.length === 0) {
+      recordAudit('cron', { type: 'fetch', status: 'no_logs', deploymentId, logCount: 0 }, 'system').catch(() => {});
       return Response.json({ message: 'No logs in provided data', logCount: 0 });
     }
 
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
           await del(existing.blob_url);
           await updateRecordBlob(existing.id, blob.url, merged.length);
           createdBlobUrl = null;
+          recordAudit('cron', { type: 'fetch', deploymentId, logCount: merged.length, merge: true }, 'system').catch(() => {});
           return Response.json({ message: 'Logs merged into existing record', record: { ...existing, blob_url: blob.url, log_count: merged.length } });
         }
       }
@@ -71,6 +73,7 @@ export async function POST(request: Request) {
     });
     createdBlobUrl = null;
 
+    recordAudit('cron', { type: 'fetch', deploymentId, logCount: Math.min(newLogs.length, 200), merge: false }, 'system').catch(() => {});
     return Response.json({ message: 'Logs stored successfully', record });
   } catch (error) {
     if (createdBlobUrl) {
