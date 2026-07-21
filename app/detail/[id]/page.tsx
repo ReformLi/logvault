@@ -143,7 +143,7 @@ export default function DetailPage({ params }: { params: Promise<{ id: string }>
                         {log.requestPath}
                       </td>
                       <td className="max-w-[400px] overflow-x-auto whitespace-nowrap px-3 py-2 text-neutral-600 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-                        {log.message}
+                        {log.message || <span className="text-neutral-400 italic">no function logs</span>}
                       </td>
                     </tr>
                     {expandedLogId === log.id && (log.functionLogs?.length ?? 0) > 0 && (

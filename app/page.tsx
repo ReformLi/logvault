@@ -431,7 +431,7 @@ export default function Dashboard() {
                         {log.requestPath}
                       </td>
                       <td className="max-w-[300px] overflow-x-auto whitespace-nowrap px-2 py-1.5 text-neutral-600 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-                        {log.message}
+                        {log.message || <span className="text-neutral-400 italic">no function logs</span>}
                       </td>
                     </tr>
                     {expandedLogId === log.id && (log.functionLogs?.length ?? 0) > 0 && (
