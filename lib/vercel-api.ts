@@ -78,6 +78,25 @@ export async function getOwnerId(): Promise<string> {
   throw new Error('Could not determine Vercel owner ID. Set VERCEL_OWNER_ID in .env.local');
 }
 
+export function parseRequestLogRows(rows: any[]): AccessLogEntry[] {
+  return rows.map((row) => ({
+    id: row.requestId || '',
+    timestamp: row.timestamp ? new Date(row.timestamp).getTime() : Date.now(),
+    deploymentId: row.deploymentId || '',
+    requestMethod: row.requestMethod || '',
+    requestPath: row.requestPath || '',
+    responseStatusCode: row.statusCode || 0,
+    level: row.logs?.[0]?.level || 'info',
+    message: row.logs?.[0]?.message || '',
+    source: row.events?.[0]?.source || 'static',
+    domain: row.domain || '',
+    environment: row.environment || 'production',
+    cache: row.cache,
+    traceId: row.traceId,
+    functionLogs: (row.logs || []).map((l: any) => ({ level: l.level || 'info', message: l.message || '' })),
+  }));
+}
+
 export async function fetchRequestLogs(options: {
   projectId: string;
   ownerId: string;
@@ -111,22 +130,7 @@ export async function fetchRequestLogs(options: {
   const data = await response.json();
   const rows: any[] = data.rows || [];
 
-  return rows.map((row) => ({
-    id: row.requestId || '',
-    timestamp: row.timestamp ? new Date(row.timestamp).getTime() : Date.now(),
-    deploymentId: row.deploymentId || '',
-    requestMethod: row.requestMethod || '',
-    requestPath: row.requestPath || '',
-    responseStatusCode: row.statusCode || 0,
-    level: row.logs?.[0]?.level || 'info',
-    message: row.logs?.[0]?.message || '',
-    source: row.events?.[0]?.source || 'static',
-    domain: row.domain || '',
-    environment: row.environment || 'production',
-    cache: row.cache,
-    traceId: row.traceId,
-    functionLogs: (row.logs || []).map((l: any) => ({ level: l.level || 'info', message: l.message || '' })),
-  }));
+  return parseRequestLogRows(rows);
 }
 
 export function getProjectConfig() {
