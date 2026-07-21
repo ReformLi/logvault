@@ -56,6 +56,7 @@ export default function Dashboard() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailLogs, setDetailLogs] = useState<LogEntry[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [dialogSize, setDialogSize] = useState<'normal' | 'large' | 'full'>('large');
   const dialogWidthClass = dialogSize === 'full' ? 'max-w-[95vw] h-[90vh]' : dialogSize === 'large' ? 'max-w-6xl' : 'max-w-3xl';
@@ -118,6 +119,8 @@ export default function Dashboard() {
         await loadRecords();
       } else if (data.error) {
         setFetchError(data.error);
+      } else if (data.message) {
+        setFetchError(data.message);
       }
     } catch {
       setFetchError('Network error');
@@ -142,12 +145,18 @@ export default function Dashboard() {
   const handleViewDetail = async (id: string) => {
     setDetailId(id);
     setDetailLoading(true);
+    setDetailError(null);
+    setDetailLogs([]);
     try {
       const res = await fetch(`/api/logs/detail/${id}`);
       const data = await res.json();
-      setDetailLogs(data.logs ?? []);
+      if (!res.ok) {
+        setDetailError(data.error || `Request failed (${res.status})`);
+      } else {
+        setDetailLogs(data.logs ?? []);
+      }
     } catch {
-      setDetailLogs([]);
+      setDetailError('Network error');
     } finally {
       setDetailLoading(false);
     }
@@ -366,6 +375,8 @@ export default function Dashboard() {
       >
         {detailLoading ? (
           <p className="text-neutral-500">Loading...</p>
+        ) : detailError ? (
+          <p className="text-red-500">Error: {detailError}</p>
         ) : detailLogs.length === 0 ? (
           <p className="text-neutral-500">No logs found</p>
         ) : (

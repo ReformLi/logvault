@@ -27,6 +27,7 @@ export async function GET(request: Request) {
   const lastRun = settings.last_cron_run ? new Date(settings.last_cron_run).getTime() : 0;
   const intervalMs = settings.fetch_interval_minutes * 60 * 1000;
   if (now - lastRun < intervalMs) {
+    recordAudit('cron', { type: 'skip', reason: 'interval_not_elapsed' }, 'system').catch(() => {});
     return Response.json({ message: 'Skipped: interval not yet elapsed' });
   }
 
@@ -42,10 +43,18 @@ export async function GET(request: Request) {
   try {
     const result = await fetchLatestLogs(project.name, project.id);
     if (!result) {
+      recordAudit('cron', { type: 'fetch', status: 'no_deployment' }, 'system').catch(() => {});
+      updateSettings({ last_cron_run: new Date().toISOString() }).catch(() => {});
       return Response.json({ message: 'No deployment found' });
     }
 
     const newLogs = result.logs;
+    if (newLogs.length === 0) {
+      recordAudit('cron', { type: 'fetch', status: 'no_logs', deploymentId: result.deploymentId, logCount: 0 }, 'system').catch(() => {});
+      updateSettings({ last_cron_run: new Date().toISOString() }).catch(() => {});
+      return Response.json({ message: 'No new logs found in the time range', logCount: 0 });
+    }
+
     const blobKey = `logs_${Date.now()}_${result.deploymentId}.enc`;
     const existing = await getLatestRecordByDeploymentId(result.deploymentId);
 
@@ -68,7 +77,7 @@ export async function GET(request: Request) {
           await del(existing.blob_url);
           await updateRecordBlob(existing.id, blob.url, merged.length);
           createdBlobUrl = null;
-          recordAudit('fetch_cron', { deploymentId: result.deploymentId, logCount: merged.length, merge: true }, 'system').catch(() => {});
+          recordAudit('cron', { type: 'fetch', deploymentId: result.deploymentId, logCount: merged.length, merge: true }, 'system').catch(() => {});
           updateSettings({ last_cron_run: new Date().toISOString() }).catch(() => {});
           return Response.json({ message: 'Logs merged into existing record', record: { ...existing, blob_url: blob.url, log_count: merged.length } });
         }
@@ -86,7 +95,7 @@ export async function GET(request: Request) {
     });
     createdBlobUrl = null;
 
-    recordAudit('fetch_cron', { deploymentId: result.deploymentId, logCount: Math.min(newLogs.length, 200), merge: false }, 'system').catch(() => {});
+    recordAudit('cron', { type: 'fetch', deploymentId: result.deploymentId, logCount: Math.min(newLogs.length, 200), merge: false }, 'system').catch(() => {});
     updateSettings({ last_cron_run: new Date().toISOString() }).catch(() => {});
     return Response.json({ message: 'Logs fetched successfully', record });
   } catch (error) {

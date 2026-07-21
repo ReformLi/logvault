@@ -46,6 +46,9 @@ export async function readBlob(url: string): Promise<string> {
     return readFile(filePath, 'utf-8');
   }
   const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to read blob: ${response.status} ${response.statusText}`);
+  }
   return response.text();
 }
 

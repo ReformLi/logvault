@@ -71,12 +71,27 @@ export default function AuditLogsPage() {
   const actionColor = (log: AuditLog) => {
     const a = log.action;
     if (a === 'login') return log.detail?.success === false ? 'text-red-500' : 'text-green-600';
+    if (a === 'cron') {
+      const type = log.detail?.type;
+      if (type === 'skip') return 'text-neutral-400';
+      if (type === 'fetch') return 'text-blue-600';
+      if (type === 'cleanup') return 'text-purple-600';
+      return 'text-neutral-600';
+    }
     switch (a) {
       case 'delete': return 'text-red-600';
       case 'fetch': return 'text-blue-600';
       case 'settings': return 'text-orange-600';
       default: return 'text-neutral-600';
     }
+  };
+
+  const actionLabel = (log: AuditLog) => {
+    if (log.action === 'cron') {
+      const type = log.detail?.type || 'unknown';
+      return `cron / ${type}`;
+    }
+    return log.action;
   };
 
   return (
@@ -102,6 +117,7 @@ export default function AuditLogsPage() {
             options={[
               { value: 'all', label: 'All Actions' },
               { value: 'login', label: 'Login' },
+              { value: 'cron', label: 'Cron' },
               { value: 'fetch', label: 'Fetch' },
               { value: 'delete', label: 'Delete' },
               { value: 'settings', label: 'Settings' },
@@ -135,7 +151,7 @@ export default function AuditLogsPage() {
               </TableHead>
               <TableHead className="whitespace-nowrap">Time</TableHead>
               <TableHead className="whitespace-nowrap">User</TableHead>
-              <TableHead className="whitespace-nowrap">Action</TableHead>
+              <TableHead className="whitespace-nowrap">Action / Type</TableHead>
               <TableHead className="whitespace-nowrap">IP</TableHead>
               <TableHead className="whitespace-nowrap">Detail</TableHead>
             </TableRow>
@@ -175,7 +191,7 @@ export default function AuditLogsPage() {
                       {log.user_email}
                     </TableCell>
                     <TableCell className="whitespace-nowrap font-medium">
-                      <span className={actionColor(log)}>{log.action}</span>
+                      <span className={actionColor(log)}>{actionLabel(log)}</span>
                     </TableCell>
                     <TableCell className="whitespace-nowrap font-mono text-xs text-neutral-500">
                       {log.detail?.ipAddress || '—'}

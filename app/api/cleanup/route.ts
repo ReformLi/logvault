@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     // Clean old audit logs
     const auditDeleted = await deleteAuditLogsOlderThan(retentionDays);
 
-    recordAudit('cleanup', { activeDeleted, deletedCleaned, auditDeleted }, 'system').catch(() => {});
+    recordAudit('cron', { type: 'cleanup', activeDeleted, deletedCleaned, auditDeleted }, 'system').catch(() => {});
 
     return Response.json({
       message: `Cleaned up ${activeDeleted} expired records, ${deletedCleaned} soft-deleted records, ${auditDeleted} audit logs`,

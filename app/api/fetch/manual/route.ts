@@ -36,6 +36,10 @@ export async function POST(request: Request) {
     }
 
     const newLogs = result.logs;
+    if (newLogs.length === 0) {
+      return Response.json({ message: 'No new logs found in the time range', logCount: 0 });
+    }
+
     const blobKey = `logs_${Date.now()}_${result.deploymentId}.enc`;
     const existing = await getLatestRecordByDeploymentId(result.deploymentId);
 

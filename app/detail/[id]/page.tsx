@@ -24,6 +24,7 @@ export default function DetailPage({ params }: { params: Promise<{ id: string }>
   const router = useRouter();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,12 +38,17 @@ export default function DetailPage({ params }: { params: Promise<{ id: string }>
 
     const loadDetail = async () => {
       const { id } = await params;
+      setError(null);
       try {
         const res = await fetch(`/api/logs/detail/${id}`);
         const data = await res.json();
-        setLogs(data.logs ?? []);
+        if (!res.ok) {
+          setError(data.error || `Request failed (${res.status})`);
+        } else {
+          setLogs(data.logs ?? []);
+        }
       } catch {
-        setLogs([]);
+        setError('Network error');
       } finally {
         setLoading(false);
       }
@@ -77,7 +83,9 @@ export default function DetailPage({ params }: { params: Promise<{ id: string }>
         <Button size="sm" onClick={handleDownload}>Download TXT</Button>
       </div>
 
-      {logs.length === 0 ? (
+      {error ? (
+        <p className="text-red-500">Error: {error}</p>
+      ) : logs.length === 0 ? (
         <p className="text-neutral-500">No logs found</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-800">
